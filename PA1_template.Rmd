@@ -1,0 +1,142 @@
+---
+title: "Markdown Project!"
+author: "Jahnavi Kodavanti"
+date: "13/08/2020"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+library(knitr)
+library(ggplot2)
+library(data.table)
+knitr::opts_chunk$set(echo = TRUE,results = 'hold')
+```
+
+**Loading data**
+
+```{r simulatedata,echo=TRUE}
+
+activity <- unzip("repdata_data_activity.zip")
+a_data <- read.csv("activity.csv", header=TRUE, sep=",")
+a_data$date <- as.Date(a_data$date, format="%Y-%m-%d")
+a_data$interval <- as.factor(a_data$interval)
+str(a_data)
+```
+
+**mean total number of steps taken per day:-**
+
+1.calculating the total number of steps taken per day:
+
+```{r showdata,echo=TRUE}
+steps_day<-aggregate(steps ~ date, data=a_data, FUN=sum)
+head(steps_day)
+```
+
+2.histogram of the total number of steps taken each day
+
+```{r histogram,fig.height=4,fig.width=4}
+ggplot(steps_day, aes(x = steps)) + 
+  geom_histogram(fill="red",binwidth = 1000) + 
+  labs(title = "Histogram - Steps Taken Per Day", x = "Steps Per Day", y = "Frequency")
+```
+
+3.Mean and Median of the total number of steps taken per day
+
+```{r datadisplay,echo=TRUE}
+mean_steps_day<- mean(steps_day$steps)
+print(mean_steps_day)
+median_steps_day <- median(steps_day$steps)
+print(median_steps_day)
+```
+
+**average daily activity pattern:-**
+
+1.time series plot:
+
+```{r seriesplot,fig.height=4,fig.width=4}
+steps_interval <- aggregate(steps ~ interval, data = a_data, 
+                            FUN = mean, na.rm = TRUE)
+steps_interval$interval<- as.integer(levels(steps_interval$interval)[steps_interval$interval])
+ggplot(steps_interval, aes(x = interval, y = steps)) + 
+  geom_line(col = "red", size = 1) + 
+  labs(title = "Average Daily Activity Pattern", x = "Interval", y = "Steps")
+```
+
+2. maximum number of steps:
+
+```{r display,echo=TRUE}
+max_interval <- steps_interval[which.max(steps_interval$steps),]
+print(max_interval)
+```
+
+**Imputing missing values:-**
+
+1.total number of missing values in the dataset:
+
+```{r valuesoutput,echo=TRUE}
+missing_values <- sum(is.na(a_data$steps))
+missing_values
+```
+
+2.We can replace missing values with their mean values.
+
+3.new dataset that is equal to the original dataset but with the missing data filled in:
+
+```{r newdata,echo=TRUE}
+new_a_data <- a_data
+index_of_na <- which(is.na(new_a_data$steps))
+for (i in index_of_na) 
+  {
+  new_a_data$steps[i] <- with(steps_interval, 
+                              steps[interval =new_a_data$interval[i]])
+  }
+head(new_a_data)
+```
+
+4.Impact of imputing missing data on the estimates of the total daily number of steps:
+
+```{r plot,fig.height=4,fig.width=4}
+new_steps_day <- aggregate(steps ~ date, data = new_a_data, FUN=sum)
+ggplot(new_steps_day, aes(x = steps)) + 
+  geom_histogram(fill = "red", binwidth = 1000) + 
+  labs(title = "Histogram - Steps Taken Per Day", x = "Steps Per Day",
+       y = "Frequency")
+```
+
+```{r new,echo=TRUE}
+new_mean_steps_day <- mean(new_steps_day$steps)
+new_mean_steps_day
+new_median_steps_day <- median(new_steps_day$steps)
+new_median_steps_day
+```
+*Both mean and median of steps taken per day are exactly same which was not the case prior to imputing missing values*
+
+**differences in activity patterns between weekdays and weekends:-**
+
+1.Indicating whether a given date is a weekday or weekend day:
+
+```{r simulation,echo=TRUE}
+data1 <- data.table(new_a_data)
+data1[, weekday := ifelse(weekdays(date) %in% c("Saturday", "Sunday"), "Weekend", "Weekday")]
+data1$weekday <- as.factor(data1$weekday)
+data1$interval <- as.integer(levels(data1$interval)[data1$interval])
+head(data1,8)
+```
+
+2.Panel plot containing a time series plot:
+
+```{r scatterplot,fig.height=4,fig.width=4}
+steps_weekday <- aggregate(steps ~ interval+weekday, data = data1, 
+                           FUN = mean)
+ggplot(steps_weekday, aes(x = interval, y = steps)) + 
+  geom_line(col = "red", size = 1) + 
+  facet_wrap(~ weekday, nrow=2, ncol=1) + 
+  labs(x = "Interval", y = "Number of Steps")
+```
+
+**Conclusion**
+
+*activity on weekdays has the highest peak compared to all intervals.
+*weekend intervals have more peaks than weekday.
+
+
